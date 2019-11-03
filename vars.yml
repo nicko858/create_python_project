@@ -1,0 +1,4 @@
+github_repo_url: https://api.github.com/user/repos
+github_ssh_url: git@github.com:nicko858
+root_dir: /home/nicko/Dropbox
+project: test_project

@@ -1,0 +1,65 @@
+---
+# ansible-playbook create_python_project.yml
+
+- hosts: localhost
+  gather_facts: no
+  vars:
+    project_dir: "{{ root_dir }}/{{ project }}"
+    
+  tasks:
+    - include_vars: vars.yml
+
+    - name: Get github access token
+      shell: "cat ~/.env| awk '{print $2}'"
+      register: access_token_output
+    
+    - name: Check if access toke presents 
+      fail: msg="Please check your access-token paths"
+      when: access_token_output.stderr != ""
+
+    - set_fact: 
+        github_access_token: "{{ access_token_output.stdout }}"
+
+    - name: Creating remote repository on github.com
+      uri:
+        url: "{{ github_repo_url }}"
+        method: POST
+        body: '{"name": "{{ project }}"}'
+        headers:
+          Authorization: "token {{ github_access_token }}"
+        body_format: json
+        status_code: 201
+    
+    - name: Git clone repository
+      shell: "cd {{ root_dir }}; git clone {{ github_ssh_url }}/{{ project }}.git"
+      register: result
+   
+    - name: Copy README.md
+      copy:
+        src: "templates/README.md"
+        dest: "{{ project_dir }}/README.md"
+    
+    - name: Create requirements.txt
+      file:
+        path: "{{ project_dir }}/requirements.txt"
+        state: touch
+
+    - name: Create .env
+      file:
+        path: "{{ project_dir }}/.env"
+        state: touch
+
+    - name: Copy .gitignore
+      copy:
+        src: "templates/.gitignore"
+        dest: "{{ project_dir }}/.gitignore"
+
+    - name: Initial commit
+      shell: "cd {{ project_dir }}; git add .; git commit -m 'Initial commit'"
+      ignore_errors: yes
+
+    - name: Push remote repository 
+      shell: "cd {{ project_dir }}; git push"
+
+    - name: Build virtual environment
+      shell: "cd {{ project_dir }}; virtualenv venv"
